@@ -63,11 +63,6 @@ namespace MediaBrowser.Plugins.GoogleDrive
             };
         }
 
-        public string GetFullPath(IEnumerable<string> path, SyncTarget target)
-        {
-            return Path.Combine(path.ToArray());
-        }
-
         public async Task<SyncedFileInfo> GetSyncedFileInfo(string id, SyncTarget target, CancellationToken cancellationToken)
         {
             _logger.Debug("Getting synced file info for {0} from {1}", id, target.Name);
@@ -86,6 +81,8 @@ namespace MediaBrowser.Plugins.GoogleDrive
 
         public Task DeleteFile(string id, SyncTarget target, CancellationToken cancellationToken)
         {
+            _logger.Debug("Deleting file {0} from {1}", id, target.Name);
+
             var googleCredentials = GetGoogleCredentials(target);
 
             return _googleDriveService.DeleteFile(id, googleCredentials, cancellationToken);
@@ -93,8 +90,12 @@ namespace MediaBrowser.Plugins.GoogleDrive
 
         public async Task<Stream> GetFile(string id, SyncTarget target, IProgress<double> progress, CancellationToken cancellationToken)
         {
+            _logger.Debug("Downloading file " + id);
+
             var googleCredentials = GetGoogleCredentials(target);
             var url = await _googleDriveService.CreateDownloadUrl(id, googleCredentials, cancellationToken).ConfigureAwait(false);
+
+            _logger.Debug("Download URL created at {0}, starting download", url);
 
             return await _httpClient.Get(new HttpRequestOptions
             {
@@ -103,8 +104,6 @@ namespace MediaBrowser.Plugins.GoogleDrive
                 CancellationToken = cancellationToken
 
             }).ConfigureAwait(false);
-
-            //return await _googleDriveService.GetFile(file, googleCredentials, cancellationToken);
         }
 
         private SyncTarget CreateSyncTarget(GoogleDriveSyncAccount syncAccount)
@@ -121,6 +120,12 @@ namespace MediaBrowser.Plugins.GoogleDrive
             var syncAccount = _configurationRetriever.GetSyncAccount(target.Id);
             var generalConfig = _configurationRetriever.GetGeneralConfiguration();
 
+            if (syncAccount == null)
+            {
+                _logger.Error("Could not locate a sync target for {0} ({1})", target.Name, target.Id);
+                throw new Exception("no sync account");
+            }
+
             return new GoogleCredentials
             {
                 RefreshToken = syncAccount.RefreshToken,
@@ -131,6 +136,8 @@ namespace MediaBrowser.Plugins.GoogleDrive
 
         public Task<QueryResult<FileMetadata>> GetFiles(FileQuery query, SyncTarget target, CancellationToken cancellationToken)
         {
+            _logger.Debug("Getting files for " + target.Name);
+
             var googleCredentials = GetGoogleCredentials(target);
             var syncAccount = _configurationRetriever.GetSyncAccount(target.Id);
 
