@@ -1,8 +1,11 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Net;
+using MediaBrowser.Model.Net;
 using MediaBrowser.Model.Serialization;
 using Newtonsoft.Json;
 
@@ -34,15 +37,21 @@ namespace OneDrive.Api
 
         protected async Task<T> GetRequest<T>(string url, string accessToken, CancellationToken cancellationToken)
         {
-            var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
-            var resultStream = await _httpClient.Get(httpRequest);
-            return _jsonSerializer.DeserializeFromStream<T>(resultStream);
+            return await HandleException(async () =>
+            {
+                var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
+                var resultStream = await _httpClient.Get(httpRequest);
+                return _jsonSerializer.DeserializeFromStream<T>(resultStream);
+            });
         }
 
         protected async Task<Stream> GetRawRequest(string url, string accessToken, CancellationToken cancellationToken)
         {
-            var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
-            return await _httpClient.Get(httpRequest);
+            return await HandleException(async () =>
+            {
+                var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
+                return await _httpClient.Get(httpRequest);
+            });
         }
 
         protected async Task<T> PostRequest<T>(string url, string accessToken, object data, CancellationToken cancellationToken)
@@ -50,14 +59,21 @@ namespace OneDrive.Api
             var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
             httpRequest.RequestContentType = "application/json";
             httpRequest.RequestContent = JsonConvert.SerializeObject(data);
-            var result = await _httpClient.Post(httpRequest);
-            return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+
+            return await HandleException(async () =>
+            {
+                var result = await _httpClient.Post(httpRequest);
+                return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+            });
         }
 
         protected async Task<T> PostRequest<T>(HttpRequestOptions httpRequest, CancellationToken cancellationToken)
         {
-            var result = await _httpClient.Post(httpRequest);
-            return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+            return await HandleException(async () =>
+            {
+                var result1 = await _httpClient.Post(httpRequest);
+                return _jsonSerializer.DeserializeFromStream<T>(result1.Content);
+            });
         }
 
         protected async Task<T> PostRequest<T>(string url, string accessToken, string body, string contentType, CancellationToken cancellationToken)
@@ -65,20 +81,30 @@ namespace OneDrive.Api
             var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
             httpRequest.RequestContent = body;
             httpRequest.RequestContentType = contentType;
-            var result = await _httpClient.Post(httpRequest);
-            return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+
+            return await HandleException(async () =>
+            {
+                var result = await _httpClient.Post(httpRequest);
+                return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+            });
         }
 
         protected async Task<T> PutRequest<T>(HttpRequestOptions httpRequest, CancellationToken cancellationToken)
         {
-            var result = await _httpClient.SendAsync(httpRequest, "PUT");
-            return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+            return await HandleException(async () =>
+            {
+                var result = await _httpClient.SendAsync(httpRequest, "PUT");
+                return _jsonSerializer.DeserializeFromStream<T>(result.Content);
+            });
         }
 
         protected async Task DeleteRequest(string url, string accessToken, CancellationToken cancellationToken)
         {
-            var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
-            await _httpClient.SendAsync(httpRequest, "DELETE");
+            await HandleException(async () =>
+            {
+                var httpRequest = PrepareHttpRequestOptions(url, accessToken, cancellationToken);
+                await _httpClient.SendAsync(httpRequest, "DELETE");
+            });
         }
 
         protected HttpRequestOptions PrepareHttpRequestOptions(string url, string accessToken, CancellationToken cancellationToken)
@@ -96,6 +122,44 @@ namespace OneDrive.Api
             }
 
             return httpRequestOptions;
+        }
+
+        private async Task<T> HandleException<T>(Func<Task<T>> func)
+        {
+            try
+            {
+                return await func();
+            }
+            catch (HttpException ex)
+            {
+                var webException = ex.InnerException as WebException;
+                if (webException != null)
+                {
+                    var stream = webException.Response.GetResponseStream();
+                    var response = _jsonSerializer.DeserializeFromStream<OneDriveError>(stream);
+                    throw new ApiException(response.error_description);
+                }
+                throw;
+            }
+        }
+
+        private async Task HandleException(Func<Task> func)
+        {
+            try
+            {
+                await func();
+            }
+            catch (HttpException ex)
+            {
+                var webException = ex.InnerException as WebException;
+                if (webException != null)
+                {
+                    var stream = webException.Response.GetResponseStream();
+                    var response = _jsonSerializer.DeserializeFromStream<OneDriveError>(stream);
+                    throw new ApiException(response.error_description);
+                }
+                throw;
+            }
         }
     }
 }

@@ -64,6 +64,7 @@
     <Compile Include="..\SharedVersion.cs">
       <Link>Properties\SharedVersion.cs</Link>
     </Compile>
+    <Compile Include="Api\ApiException.cs" />
     <Compile Include="Api\ApiService.cs" />
     <Compile Include="Api\AuthorizationToken.cs" />
     <Compile Include="Api\CreateFolderParameters.cs" />
@@ -75,6 +76,7 @@
     <Compile Include="Api\LiveAuthenticationApi.cs" />
     <Compile Include="Api\OneDriveApi.cs" />
     <Compile Include="Api\AuthorizationParameters.cs" />
+    <Compile Include="Api\OneDriveError.cs" />
     <Compile Include="Api\UploadSession.cs" />
     <Compile Include="Api\ViewChange.cs" />
     <Compile Include="Api\ViewChangesResult.cs" />

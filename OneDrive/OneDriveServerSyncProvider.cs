@@ -62,8 +62,13 @@ namespace OneDrive
 
             await CreateFolderHierarchy(pathParts, oneDriveCredentials, cancellationToken);
 
+            _logger.Debug("Creating upload session");
             var uploadSession = await _oneDriveApi.CreateUploadSession(path, oneDriveCredentials, cancellationToken);
+            _logger.Debug("Upload session created at {0}, expiring at {1}", uploadSession.uploadUrl, uploadSession.expirationDateTime);
+
+            _logger.Debug("Start uploading file...");
             var id = await UploadFile(uploadSession.uploadUrl, stream, oneDriveCredentials, cancellationToken);
+            _logger.Debug("Upload completed!");
 
             return new SyncedFileInfo
             {
@@ -75,6 +80,8 @@ namespace OneDrive
 
         public async Task DeleteFile(string id, SyncTarget target, CancellationToken cancellationToken)
         {
+            _logger.Debug("Deleting file id {0}", id);
+
             try
             {
                 var oneDriveCredentials = CreateOneDriveCredentials(target);
@@ -85,6 +92,7 @@ namespace OneDrive
             {
                 if (ex.StatusCode == HttpStatusCode.NotFound)
                 {
+                    _logger.Debug("File didn't exist");
                     throw new FileNotFoundException("File not found", ex);
                 }
 
@@ -94,6 +102,8 @@ namespace OneDrive
 
         public async Task<Stream> GetFile(string id, SyncTarget target, IProgress<double> progress, CancellationToken cancellationToken)
         {
+            _logger.Debug("Getting file id {0}", id);
+
             var link = await CreateLink(id, target, cancellationToken);
 
             return await _httpClient.Get(new HttpRequestOptions
@@ -115,6 +125,7 @@ namespace OneDrive
             {
                 if (ex.StatusCode == HttpStatusCode.NotFound)
                 {
+                    _logger.Debug("File didn't exist");
                     return new QueryResult<FileMetadata>();
                 }
 
@@ -134,6 +145,7 @@ namespace OneDrive
             {
                 if (ex.StatusCode == HttpStatusCode.NotFound)
                 {
+                    _logger.Debug("File didn't exist");
                     throw new FileNotFoundException("File not found", ex);
                 }
 
@@ -152,7 +164,7 @@ namespace OneDrive
 
         private OneDriveCredentials CreateOneDriveCredentials(SyncTarget target)
         {
-            return new OneDriveCredentials(_configurationRetriever, _liveAuthenticationApi, target);
+            return new OneDriveCredentials(_configurationRetriever, _liveAuthenticationApi, _logger, target);
         }
 
         private string GetFullPath(IEnumerable<string> path)
@@ -195,7 +207,9 @@ namespace OneDrive
                 var buffer = await FillBuffer(stream, cancellationToken);
                 var endIndex = startIndex + buffer.Length - 1;
 
+                _logger.Debug("Uploading chunk {0}-{1}", startIndex, endIndex);
                 var uploadSession = await _oneDriveApi.UploadFragment(url, startIndex, endIndex, stream.Length, buffer, oneDriveCredentials, cancellationToken);
+                _logger.Debug("Chunk uploaded, new upload session at {0}, expiring at {1}", uploadSession.expirationDateTime);
 
                 if (!string.IsNullOrEmpty(uploadSession.id))
                 {
@@ -235,6 +249,8 @@ namespace OneDrive
 
         private async Task<QueryResult<FileMetadata>> GetFileById(string id, OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
         {
+            _logger.Debug("Getting file with id {0}", id);
+
             var viewChangeResult = await _oneDriveApi.ViewChangeById(id, oneDriveCredentials, cancellationToken);
             var viewChanges = viewChangeResult.value.Select(CreateFileMetadata).ToArray();
 
@@ -247,6 +263,8 @@ namespace OneDrive
 
         private async Task<QueryResult<FileMetadata>> GetFileByPath(string path, OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
         {
+            _logger.Debug("Getting file with path {0}", path);
+
             var viewChangeResult = await _oneDriveApi.ViewChangeByPath(path, oneDriveCredentials, cancellationToken);
             var viewChanges = viewChangeResult.value.Select(CreateFileMetadata).ToArray();
 
@@ -259,6 +277,8 @@ namespace OneDrive
 
         private async Task<QueryResult<FileMetadata>> GetAllFiles(OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
         {
+            _logger.Debug("Getting all files");
+
             var viewChangeResult = new ViewChangesResult { HasMoreChanges = true };
             var files = new List<FileMetadata>();
 
@@ -288,6 +308,8 @@ namespace OneDrive
 
         private async Task<SyncedFileInfo> CreateLink(string id, SyncTarget target, CancellationToken cancellationToken)
         {
+            _logger.Debug("Creating link for file id {0}", id);
+
             var oneDriveCredentials = CreateOneDriveCredentials(target);
 
             var link = await _oneDriveApi.CreateLink(id, oneDriveCredentials, cancellationToken);
