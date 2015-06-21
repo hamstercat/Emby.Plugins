@@ -33,8 +33,8 @@ namespace OneDrive.Api
 
             var httpRequest = PrepareHttpRequestOptions(string.Empty, accessToken, cancellationToken);
             httpRequest.Url = url;
-            // 1 hour
-            httpRequest.TimeoutMs = 60 * 60 * 1000;
+            // 10 minutes
+            httpRequest.TimeoutMs = 10 * 60 * 1000;
             httpRequest.RequestContentBytes = content;
             httpRequest.RequestHeaders["Content-Range"] = string.Format("bytes {0}-{1}/{2}", rangeStart, rangeEnd, totalLength);
 

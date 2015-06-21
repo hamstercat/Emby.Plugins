@@ -30,7 +30,7 @@ namespace OneDrive
         public async Task<string> GetAccessToken(CancellationToken cancellationToken)
         {
             // Give a buffer around the expiration time
-            if (_accessToken.ExpiresAt <= DateTime.UtcNow.AddSeconds(-20))
+            if (_accessToken.ExpiresAt <= DateTime.Now.AddMinutes(-11))
             {
                 _logger.Debug("Access token expired at {0}, getting a new one", _accessToken.ExpiresAt);
 
@@ -43,7 +43,7 @@ namespace OneDrive
         private async Task RefreshToken(CancellationToken cancellationToken)
         {
             var config = _configurationRetriever.GetGeneralConfiguration();
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var refreshToken = await _liveAuthenticationApi.RefreshToken(_accessToken.RefresToken, Constants.OneDriveRedirectUrl, config.OneDriveClientId, config.OneDriveClientSecret, cancellationToken);
 
             var expiresAt = now.AddSeconds(refreshToken.expires_in);

@@ -20,8 +20,8 @@ namespace OneDrive
 {
     public class OneDriveServerSyncProvider : IServerSyncProvider, IHasDynamicAccess, IRemoteSyncProvider
     {
-        // 10mb
-        private const long StreamBufferSize = 10 * 1024 * 1024;
+        // 5mb
+        private const long StreamBufferSize = 5 * 1024 * 1024;
 
         private readonly IConfigurationRetriever _configurationRetriever;
         private readonly IOneDriveApi _oneDriveApi;
@@ -209,7 +209,7 @@ namespace OneDrive
 
                 _logger.Debug("Uploading chunk {0}-{1}", startIndex, endIndex);
                 var uploadSession = await _oneDriveApi.UploadFragment(url, startIndex, endIndex, stream.Length, buffer, oneDriveCredentials, cancellationToken);
-                _logger.Debug("Chunk uploaded, new upload session at {0}, expiring at {1}", uploadSession.expirationDateTime);
+                _logger.Debug("Chunk uploaded");
 
                 if (!string.IsNullOrEmpty(uploadSession.id))
                 {

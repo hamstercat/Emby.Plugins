@@ -55,7 +55,7 @@ namespace OneDrive.RestServices
         {
             var config = _configurationRetriever.GetGeneralConfiguration();
 
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var token = await _liveAuthenticationApi.AcquireToken(code, Constants.OneDriveRedirectUrl, config.OneDriveClientId, config.OneDriveClientSecret, CancellationToken.None);
 
             return new Token
